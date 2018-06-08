@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import sampler
 import torchvision.datasets as dset
 import argparse
+import os
 
 import numpy as np
 
@@ -20,11 +21,13 @@ def parseArguments():
     parser.add_argument('--cycle', action = "store_true", help = "Include if using cycle loss rather than color gradient loss")
     parser.add_argument('--b', dest = "batch_size", type = int, nargs = '?', default = -1, help = "Batch size")
     parser.add_argument('--r', dest = "reg", type = float, nargs = '?', default = 1.0, help = "Regularization")
-    parser.add_argument('--e', dest = "epochs", type = int, nargs = '?', default = 100, help = "Number of epochs")
+    parser.add_argument('--e', dest = "epochs", type = int, nargs = '?', default = 50, help = "Number of epochs")
     parser.add_argument('--lr', dest = "lr", type = float, nargs = '?', default = 1e-3, help = "learning rate")
+    parser.add_argument('--f', dest = "f", type = str, nargs = '?', required=True, help = "filename")
+    parser.add_argument('--d', dest = "d", type = str, nargs = '?', required=True, help = "description")
 
     args = parser.parse_args()  
-    return args.ls, args.cycle, args.batch_size, args.reg, args.epochs, args.lr
+    return args.ls, args.cycle, args.batch_size, args.reg, args.epochs, args.lr, args.f, args.d
 
 def sample_noise(batch_size, dim):
     """
@@ -134,7 +137,6 @@ def cycle_loss(grad, fake_images, rep_images, reg):
     return loss
 
 def grad_loss(grad, fake_images, rep_images, reg):
-    print(reg)
     loss = reg * torch.mean(torch.abs(grad * fake_images - grad * rep_images))
     return loss
 
@@ -228,6 +230,8 @@ def run_a_gan(X_a_train, X_h_train, D, G, D_solver, G_solver, discriminator_loss
     iter_count = 0
     length = len(X_a_train)
     num_batches = int(length / batch_size + 1) if length % batch_size != 0 else int(length / batch_size)
+    f = open(filename, 'w')
+    f.write(description + "\n")
     for epoch in range(num_epochs):
         for i in range(num_batches):
             start = i * batch_size
@@ -262,19 +266,21 @@ def run_a_gan(X_a_train, X_h_train, D, G, D_solver, G_solver, discriminator_loss
 
 
 
-        if (iter_count % show_every == 0):
-            print('Iter: {}, D: {:.4}, G:{:.4}'.format(iter_count,d_total_error.item(),g_error.item()))
-            print()
+        print('Iter: {}, D: {:.4}, G:{:.4}'.format(iter_count,d_total_error.item(),g_error.item()))
+        print()
+        f.write('{}, {:.4}, {:.4}\n'.format(iter_count,d_total_error.item(),g_error.item()))
         iter_count += 1
+    f.close()
     return G
 
 
 
 def main():
-        global dtype, learning_rate
+        global dtype, learning_rate, filename, description
         dtype = torch.FloatTensor
 
-        ls, cycle, batch_size, reg,epochs, learning_rate = parseArguments()
+        ls, cycle, batch_size, reg,epochs, learning_rate, filename, description = parseArguments()
+        assert not os.path.exists(filename)
         d_loss = ls_discriminator_loss if ls else discriminator_loss
         g_loss = ls_generator_loss if ls else generator_loss
         regularization = cycle_loss if cycle else grad_loss
@@ -288,7 +294,7 @@ def main():
         X_h_train = torch.from_numpy(X_h_train)
         X_h_val = torch.from_numpy(np.load('X_h_val.npy'))
         y_h_train = torch.from_numpy(np.load('y_h_train.npy'))
-        y_h_val = torch.from_numpy(np.load('y_H_val.npy'))
+        y_h_val = torch.from_numpy(np.load('y_h_val.npy'))
 
         if batch_size == -1:
             batch_size = len(X_a_train)
@@ -325,16 +331,23 @@ def main():
                 fake_data = X_h_val.type(dtype)
                 fake_data = 2* (fake_data - 0.5)
                 X_h_val = G(fake_data).type(dtype).view(len(X_h_val), 3, 32, 32)
+                fake_data = X_h_test.type(dtype)
+                fake_data = 2* (fake_data - 0.5)
+                X_h_val = G(fake_data).type(dtype).view(len(X_h_test), 3, 32, 32)
 
         X_train = np.concatenate((X_a_train, X_h_train), axis=0)
         y_train = np.concatenate((y_a_train, y_h_train), axis=0)
         X_val = np.concatenate((X_a_val, X_h_val), axis=0)
         y_val = np.concatenate((y_a_val, y_h_val), axis=0)
+        X_test = np.concatenate((X_a_test, X_h_test), axis=0)
+        y_test = np.concatenate((y_a_test, y_h_test), axis=0)
 
         np.save('X_train_gan.npy', X_train)
         np.save('y_train_gan.npy', y_train)
         np.save('X_val_gan.npy', X_val)
         np.save('y_val_gan.npy', y_val)
+        np.save('X_test_gan.npy', X_test)
+        np.save('y_test_gan.npy', y_test)
 
 
 
