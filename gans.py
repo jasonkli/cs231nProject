@@ -30,17 +30,6 @@ def parseArguments():
     return args.ls, args.cycle, args.batch_size, args.reg, args.epochs, args.lr, args.f, args.d
 
 def sample_noise(batch_size, dim):
-    """
-    Generate a PyTorch Tensor of uniform random noise.
-
-    Input:
-    - batch_size: Integer giving the batch size of noise to generate.
-    - dim: Integer giving the dimension of noise to generate.
-    
-    Output:
-    - A PyTorch Tensor of shape (batch_size, dim) containing uniform
-      random noise in the range (-1, 1).
-    """
     return 2 * (torch.rand(batch_size, dim) - 0.5)
 
 class Flatten(nn.Module):
@@ -49,10 +38,6 @@ class Flatten(nn.Module):
         return x.view(N, -1)  # "flatten" the C * H * W values into a single vector per image
     
 class Unflatten(nn.Module):
-    """
-    An Unflatten module receives an input of shape (N, C*H*W) and reshapes it
-    to produce an output of shape (N, C, H, W).
-    """
     def __init__(self, N=-1, C=3, H=28, W=32):
         super(Unflatten, self).__init__()
         self.N = N
@@ -67,49 +52,15 @@ def initialize_weights(m):
         init.xavier_uniform_(m.weight.data)
 
 def get_optimizer(model):
-    """
-    Construct and return an Adam optimizer for the model with learning rate 1e-3,
-    beta1=0.5, and beta2=0.999.
-    
-    Input:
-    - model: A PyTorch model that we want to optimize.
-    
-    Returns:
-    - An Adam optimizer for the model with the desired hyperparameters.
-    """
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999))
     return optimizer
 
 def bce_loss(input, target):
-    """
-    Numerically stable version of the binary cross-entropy loss function.
-
-    As per https://github.com/pytorch/pytorch/issues/751
-    See the TensorFlow docs for a derivation of this formula:
-    https://www.tensorflow.org/api_docs/python/tf/nn/sigmoid_cross_entropy_with_logits
-
-    Inputs:
-    - input: PyTorch Tensor of shape (N, ) giving scores.
-    - target: PyTorch Tensor of shape (N,) containing 0 and 1 giving targets.
-
-    Returns:
-    - A PyTorch Tensor containing the mean BCE loss over the minibatch of input data.
-    """
     neg_abs = - input.abs()
     loss = input.clamp(min=0) - input * target + (1 + neg_abs.exp()).log()
     return loss.mean()
 
 def discriminator_loss(logits_real, logits_fake):
-    """
-    Computes the discriminator loss described above.
-    
-    Inputs:
-    - logits_real: PyTorch Tensor of shape (N,) giving scores for the real data.
-    - logits_fake: PyTorch Tensor of shape (N,) giving scores for the fake data.
-    
-    Returns:
-    - loss: PyTorch Tensor containing (scalar) the loss for the discriminator.
-    """
     loss = None
     N, _ = logits_real.size()
     M, _ = logits_fake.size()
@@ -119,15 +70,7 @@ def discriminator_loss(logits_real, logits_fake):
     return loss
 
 def generator_loss(logits_fake):
-    """
-    Computes the generator loss described above.
 
-    Inputs:
-    - logits_fake: PyTorch Tensor of shape (N,) giving scores for the fake data.
-    
-    Returns:
-    - loss: PyTorch Tensor containing the (scalar) loss for the generator.
-    """
     M, _ = logits_fake.size()
     loss = bce_loss(logits_fake, torch.ones(M).type(dtype))
     return loss
@@ -141,38 +84,17 @@ def grad_loss(grad, fake_images, rep_images, reg):
     return loss
 
 def ls_discriminator_loss(scores_real, scores_fake):
-    """
-    Compute the Least-Squares GAN loss for the discriminator.
-    
-    Inputs:
-    - scores_real: PyTorch Tensor of shape (N,) giving scores for the real data.
-    - scores_fake: PyTorch Tensor of shape (N,) giving scores for the fake data.
-    
-    Outputs:
-    - loss: A PyTorch Tensor containing the loss.
-    """
+
     loss = 0.5 * (((scores_real - 1) ** 2).mean() + (scores_fake ** 2).mean())
     return loss
 
 def ls_generator_loss(scores_fake):
-    """
-    Computes the Least-Squares GAN loss for the generator.
-    
-    Inputs:
-    - scores_fake: PyTorch Tensor of shape (N,) giving scores for the fake data.
-    
-    Outputs:
-    - loss: A PyTorch Tensor containing the loss.
-    """
+
     loss = 0.5 * ((scores_fake - 1) ** 2).mean()
     return loss
 
 
 def build_dc_classifier():
-    """
-    Build and return a PyTorch model for the DCGAN discriminator implementing
-    the architecture above.
-    """
     return nn.Sequential(
         Unflatten(-1, 3, 32, 32),
         nn.Conv2d(3, 32, 5),
@@ -190,10 +112,7 @@ def build_dc_classifier():
     )
 
 def build_dc_generator():
-    """
-    Build and return a PyTorch model implementing the DCGAN generator using
-    the architecture described above.
-    """
+
     return nn.Sequential(
         Flatten(),
         nn.Linear(3 * 32 * 32, 1600),
@@ -213,20 +132,7 @@ def build_dc_generator():
 
 def run_a_gan(X_a_train, X_h_train, D, G, D_solver, G_solver, discriminator_loss, generator_loss, regularization, X_h_train_grad, reg, show_every=10, 
               batch_size=128, noise_size=96, num_epochs=100):
-    """
-    Train a GAN!
-    
-    Inputs:
-    - D, G: PyTorch models for the discriminator and generator
-    - D_solver, G_solver: torch.optim Optimizers to use for training the
-      discriminator and generator.
-    - discriminator_loss, generator_loss: Functions to use for computing the generator and
-      discriminator loss, respectively.
-    - show_every: Show samples after every show_every iterations.
-    - batch_size: Batch size to use for training.
-    - noise_size: Dimension of the noise to use as input to the generator.
-    - num_epochs: Number of epochs over the training dataset to use for training.
-    """
+
     iter_count = 0
     length = len(X_a_train)
     num_batches = int(length / batch_size + 1) if length % batch_size != 0 else int(length / batch_size)
