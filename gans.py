@@ -220,11 +220,9 @@ def main():
         G_DC = build_dc_generator().type(dtype)
         G_DC.apply(initialize_weights)
         G2_DC = build_dc_generator().type(dtype)
-        #G2_DC.apply(initialize_weights)
 
         D_DC_solver = get_optimizer(D_DC)
         G_DC_solver = get_optimizer(G_DC)
-        #G2_DC_solver = get_optimizer(G2_DC)
 
 
         G = run_a_gan(X_a_train, X_h_train, D_DC, G_DC, D_DC_solver, G_DC_solver,

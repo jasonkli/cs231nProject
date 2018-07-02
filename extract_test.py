@@ -7,7 +7,6 @@ import csv
 
 FRAMES_PATH = "/frames/x40/"
 ATYPIA_PATH = "/atypia/x40/"
-#KEYWORD = "decision"
 SIZE = 36,36
 
 counts = [[0 for j in range(3)] for i in range(6)]

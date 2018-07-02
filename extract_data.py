@@ -7,7 +7,6 @@ import csv
 
 FRAMES_PATH = "/frames/x40/"
 ATYPIA_PATH = "/atypia/x40/"
-#KEYWORD = "decision"
 SIZE = 36,36
 
 def imageToVector(directory):
@@ -99,6 +98,7 @@ def main():
 	y_train = y[0:2*cutoff]
 	X_val = X[2*cutoff:2*length,:,:,:]
 	y_val = y[2*cutoff:2*length]
+	print(len(X_train), len(X_val))
 
 
 	#Save files
